@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import API_BASE from '../config';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import SubFooter from './SubFooter';
@@ -52,7 +53,7 @@ const Cart = ({ cart, setCart, user, setUser }) => {
 
         try {
             // ✨ FIXED: Added JWT Authorization Header here
-            const response = await fetch(`http://${window.location.hostname}:8080/api/cart/remove/${currentUserId}/${petId}`, {
+            const response = await fetch(`${API_BASE}/cart/remove/${currentUserId}/${petId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`

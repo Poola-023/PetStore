@@ -11,7 +11,7 @@ const Login = ({ user, setUser, cart }) => {
     const navigate = useNavigate();
 
     // ✨ DEFINED THE API BASE URL HERE
-    const API = `http://${window.location.hostname}:8080/api/users`;
+    const API = `http://${window.location.hostname}:8090/api/users`;
 
     const handleSendOtp = async (e) => {
         e.preventDefault();

@@ -12,7 +12,7 @@ const VendorSignup = ({ user, setUser, cart }) => {
     const navigate = useNavigate();
 
     const pinInputRef = useRef(null);
-    const API = `http://${window.location.hostname}:8080/api/vendors`;
+    const API = `http://${window.location.hostname}:8090/api/vendors`;
 
     useEffect(() => {
         if (step === 2 && pinInputRef.current) {

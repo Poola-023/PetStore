@@ -27,7 +27,7 @@ const CategorySearch = ({ user, setUser, cart }) => {
         const fetchCategoryPets = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`http://${window.location.hostname}:8080/api/pets/category/${categoryName}`);
+                const res = await fetch(`http://${window.location.hostname}:8090/api/pets/category/${categoryName}`);
                 if (res.ok) {
                     const data = await res.json();
                     setPets(data);

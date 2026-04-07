@@ -16,7 +16,7 @@ const VendorDiscounts = () => {
     const [petDiscounts, setPetDiscounts] = useState({});
 
     const allCategories = ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Turtle', 'Hamster', 'Guinea Pig', 'Other'];
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
 
     // ✨ SECURITY HELPER: Get JWT Token
     const getAuthHeaders = () => {

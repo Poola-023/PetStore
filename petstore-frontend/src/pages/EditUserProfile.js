@@ -64,7 +64,7 @@ const EditUserProfile = ({ user, setUser, cart }) => {
 
         try {
             // Sending the PUT request including the profileImg (even if null)
-            const response = await fetch(`http://${window.location.hostname}:8080/api/users/update/${userId}`, {
+            const response = await fetch(`http://${window.location.hostname}:8090/api/users/update/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

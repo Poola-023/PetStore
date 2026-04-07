@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { QRCodeCanvas } from 'qrcode.react';
 import Navbar from './Navbar';
 import SubFooter from './SubFooter';
 import PageNavigation from './PageNavigation';
@@ -18,10 +17,7 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
     const [isEditing, setIsEditing] = useState(false);
 
     // --- Payment States ---
-    const [paymentMethod, setPaymentMethod] = useState('UPI');
-    const [showQR, setShowQR] = useState(false);
-    const [transactionId, setTransactionId] = useState('');
-    const [timeLeft, setTimeLeft] = useState(300);
+    const [paymentMethod, setPaymentMethod] = useState('ONLINE'); // Default to Razorpay
 
     const [tempAddress, setTempAddress] = useState({
         fullName: user?.username || '',
@@ -33,7 +29,7 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
         addressType: 'HOME'
     });
 
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
 
     // Security Helper
     const getAuthHeaders = () => {
@@ -47,12 +43,7 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
     useEffect(() => {
         const styleSheet = document.createElement("style");
         styleSheet.type = "text/css";
-        styleSheet.innerText = `
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        `;
+        styleSheet.innerText = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
         document.head.appendChild(styleSheet);
     }, []);
 
@@ -62,46 +53,36 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
         }
     }, [user, navigate]);
 
-    // Fetch Addresses
-    useEffect(() => {
-        const fetchAddresses = async () => {
-            const userId = user?.userId || user?.id;
-            if (!userId) return;
-            try {
-                const res = await fetch(`${API_BASE}/address/fetch/${userId}?showAll=true&size=50`, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const fetchedAddresses = Array.isArray(data) ? data : (data.content || []);
+    // ✨ FIXED: Address fetching logic points to port 8090
+    const fetchAddresses = useCallback(async () => {
+        const userId = user?.userId || user?.id;
+        if (!userId) return;
+        try {
+            const res = await fetch(`${API_BASE}/address/fetch/${userId}?page=0&size=50&showAll=true`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const fetchedAddresses = Array.isArray(data) ? data : (data.content || []);
 
-                    if (fetchedAddresses.length > 0) {
-                        setAllAddresses(fetchedAddresses);
-                        setSelectedAddress(fetchedAddresses[0]);
-                        setIsEditing(false);
-                    } else {
-                        setIsEditing(true);
-                    }
+                if (fetchedAddresses.length > 0) {
+                    setAllAddresses(fetchedAddresses);
+                    setSelectedAddress(fetchedAddresses[0]);
+                    setIsEditing(false);
+                } else {
+                    setIsEditing(true);
                 }
-            } catch (err) {
-                console.error("Address fetch failed", err);
-                setIsEditing(true);
             }
-        };
-        fetchAddresses();
+        } catch (err) {
+            console.error("Address fetch failed", err);
+            setIsEditing(true);
+        }
     }, [user, API_BASE]);
 
     useEffect(() => {
-        let timer;
-        if (showQR && timeLeft > 0) {
-            timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-        } else if (timeLeft === 0) {
-            setShowQR(false);
-            setTimeLeft(300);
-        }
-        return () => clearInterval(timer);
-    }, [showQR, timeLeft]);
+        fetchAddresses();
+    }, [fetchAddresses]);
 
     const checkoutItems = location.state?.items || (Array.isArray(cart) ? cart : []);
 
@@ -127,7 +108,7 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
 
     const finalTotalAmount = subtotal - totalSavings;
 
-    // SAVE ADDRESS LOGIC
+    // SAVE ADDRESS
     const handleSaveAddress = async () => {
         const userId = user?.userId || user?.id;
         if (!tempAddress.mobile || !tempAddress.houseDetails || !tempAddress.areaLocality || !tempAddress.city || !tempAddress.pincode) {
@@ -139,14 +120,11 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
             const res = await fetch(`${API_BASE}/address/save/${userId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ ...tempAddress, userId: userId })
+                body: JSON.stringify(tempAddress)
             });
             if (res.ok) {
-                const saved = await res.json();
-                setSelectedAddress(saved);
-                setAllAddresses(prev => [saved, ...prev]);
-                setIsEditing(false); // Close the form, address is now selected!
                 alert("✅ Address saved successfully! You can now complete your adoption.");
+                await fetchAddresses();
             } else {
                 alert("Failed to save location.");
             }
@@ -157,42 +135,20 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
         }
     };
 
-    // FINAL ORDER LOGIC
-    const handleFinalOrder = async (e) => {
-        e.preventDefault();
+    // ✨ CORE ORDER PLACEMENT (Used by both Razorpay and COD)
+    const placeOrderToBackend = async (method, txnId) => {
         const userId = user?.userId || user?.id;
-
-        // ✨ CRITICAL UI CHECKS
-        if (isEditing) {
-            return alert("⚠️ You have an unsaved address! Please scroll up and click the black 'Confirm This Location' button first.");
-        }
-
-        if (!selectedAddress || (!selectedAddress.addressId && !selectedAddress.id)) {
-            return alert("⚠️ Please select a delivery address to continue.");
-        }
-
-        if (paymentMethod === 'UPI' && transactionId.length < 12) {
-            return alert("Please enter the 12-digit UTR number from your payment app.");
-        }
-
-        if (checkoutItems.length === 0) {
-            return alert("Your checkout bag is empty!");
-        }
-
-        setLoading(true);
-
-        // Map data exactly as expected by your backend
         const finalOrderArray = processedItems.map(item => ({
             userId: userId,
-            addressId: selectedAddress.addressId || selectedAddress.id, // Handles both naming conventions just in case
+            addressId: selectedAddress.addressId || selectedAddress.id,
             vendorId: item.vendorId,
             petId: item.id,
             petNames: item.breed || item.name,
             petGender: item.selectedGender || 'Unknown',
             totalAmount: item.finalPrice,
-            transactionId: paymentMethod === 'UPI' ? transactionId : `METH_${paymentMethod}_${Date.now()}`,
-            paymentMethod: paymentMethod,
-            paymentStatus: paymentMethod === 'COD' ? "PENDING_COD" : "PENDING_VERIFICATION",
+            transactionId: txnId,
+            paymentMethod: method === 'ONLINE' ? 'RAZORPAY' : method,
+            paymentStatus: method === 'COD' ? "PENDING_COD" : "SUCCESS",
             orderStatus: "In Process"
         }));
 
@@ -217,6 +173,99 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
             }
         } catch (error) {
             alert("Connection error. Please check your internet.");
+            setLoading(false);
+        }
+    };
+
+    // COD HANDLER
+    const handleCODPayment = async (e) => {
+        e.preventDefault();
+        if (isEditing) return alert("⚠️ You have an unsaved address! Please click 'Confirm This Location' first.");
+        if (!selectedAddress) return alert("⚠️ Please select a delivery address to continue.");
+        if (checkoutItems.length === 0) return alert("Your checkout bag is empty!");
+
+        setLoading(true);
+        placeOrderToBackend('COD', `COD_${Date.now()}`);
+    };
+
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
+    // ✨ RAZORPAY HANDLER
+    const handleRazorpayPayment = async (e) => {
+        e.preventDefault();
+
+        if (isEditing) return alert("⚠️ You have an unsaved address! Please click 'Confirm This Location' first.");
+        if (!selectedAddress) return alert("⚠️ Please select a delivery address to continue.");
+        if (checkoutItems.length === 0) return alert("Your checkout bag is empty!");
+
+        setLoading(true);
+
+        try {
+            const orderRes = await fetch(`${API_BASE}/payment/create-order`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ amount: finalTotalAmount })
+            });
+
+            if (!orderRes.ok) {
+                alert("Failed to create secure payment order.");
+                setLoading(false);
+                return;
+            }
+
+            const orderData = await orderRes.json();
+            const scriptLoaded = await loadRazorpayScript();
+
+            if (!scriptLoaded) {
+                alert("Razorpay SDK failed to load. Please check your internet connection.");
+                setLoading(false);
+                return;
+            }
+
+            // ✨ CHANGE THIS TO YOUR rzp_live_ KEY IF YOU ARE READY FOR REAL MONEY
+            const options = {
+                key: "rzp_test_SaGKXWItyTOgJv",
+                amount: orderData.amount,
+                currency: "INR",
+                name: "Paws & Palette",
+                description: "Soulful Companion Adoption",
+                order_id: orderData.id,
+                handler: function (response) {
+                    placeOrderToBackend("ONLINE", response.razorpay_payment_id);
+                },
+                prefill: {
+                    name: user?.username || "Customer",
+                    email: user?.email || "customer@example.com",
+                    contact: selectedAddress?.mobile || "9999999999",
+                },
+                theme: { color: "#131921" },
+                modal: {
+                    ondismiss: function() {
+                        setLoading(false);
+                    }
+                }
+            };
+
+            const paymentObject = new window.Razorpay(options);
+
+            paymentObject.on('payment.failed', function (response) {
+                alert(`Payment Failed: ${response.error.description}`);
+                setLoading(false);
+            });
+
+            paymentObject.open();
+
+        } catch (error) {
+            console.error(error);
+            alert("Error connecting to payment gateway.");
             setLoading(false);
         }
     };
@@ -301,46 +350,37 @@ const Checkout = ({ cart, setCart, user, setUser }) => {
 
                         <section style={styles.section}>
                             <h3 style={styles.sectionTitle}>2. Payment Gateway</h3>
+
+                            {/* ✨ Streamlined Online/COD Grid */}
                             <div style={styles.payGrid}>
-                                {['UPI', 'CARD', 'COD'].map(method => (
+                                {['ONLINE', 'COD'].map(method => (
                                     <div
                                         key={method}
                                         style={{...styles.payCard, border: paymentMethod === method ? '2.5px solid #FF9900' : '1px solid #EAEAEA'}}
-                                        onClick={() => {setPaymentMethod(method); setShowQR(false);}}
+                                        onClick={() => setPaymentMethod(method)}
                                     >
-                                        <span style={styles.payIcon}>{method === 'UPI' ? '📱' : method === 'CARD' ? '💳' : '💵'}</span>
-                                        <span style={styles.payName}>{method}</span>
+                                        <span style={styles.payIcon}>{method === 'ONLINE' ? '💳' : '💵'}</span>
+                                        <span style={styles.payName}>{method === 'ONLINE' ? 'Pay Online (Razorpay)' : 'Cash on Delivery'}</span>
                                     </div>
                                 ))}
                             </div>
 
                             <div style={styles.payDetails}>
-                                {paymentMethod === 'UPI' && (
+                                {paymentMethod === 'ONLINE' && (
                                     <div style={{textAlign: 'center'}}>
-                                        {!showQR ? (
-                                            <button style={styles.primaryBtn} onClick={() => setShowQR(true)} disabled={isEditing || !selectedAddress}>Generate QR Code</button>
-                                        ) : (
-                                            <div style={styles.qrVault}>
-                                                <div style={styles.timer}>Expires in: {Math.floor(timeLeft/60)}:{timeLeft%60 < 10 ? '0' : ''}{timeLeft%60}</div>
-                                                <QRCodeCanvas value={`upi://pay?pa=petconnect@upi&am=${finalTotalAmount}`} size={160} />
-                                                <p style={styles.qrHint}>Pay ₹{finalTotalAmount.toLocaleString()} via any UPI App</p>
-                                                <input style={styles.input} placeholder="Enter 12-digit UTR / Ref ID" value={transactionId} onChange={e => setTransactionId(e.target.value)} />
-                                                <button style={styles.finalBtn} onClick={handleFinalOrder} disabled={loading || !transactionId || isEditing}>Complete Adoption</button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {paymentMethod === 'CARD' && (
-                                    <div style={styles.form}>
-                                        <input style={styles.input} placeholder="Card Number" maxLength="16" />
-                                        <div style={styles.row}><input style={styles.input} placeholder="MM/YY" /><input style={styles.input} placeholder="CVV" /></div>
-                                        <button style={styles.finalBtn} onClick={handleFinalOrder} disabled={loading || isEditing}>Pay ₹{finalTotalAmount.toLocaleString()}</button>
+                                        <p style={styles.codText}>Securely pay using UPI, Credit/Debit Cards, Netbanking, or Wallets.</p>
+                                        <button style={{...styles.finalBtn, backgroundColor: '#3399cc'}} onClick={handleRazorpayPayment} disabled={loading || isEditing}>
+                                            Pay ₹{finalTotalAmount.toLocaleString()} Securely
+                                        </button>
+                                        <div style={{marginTop: '15px', fontSize: '0.8rem', color: '#B2BEC3'}}>🔒 Secured by Razorpay</div>
                                     </div>
                                 )}
                                 {paymentMethod === 'COD' && (
                                     <div style={{textAlign: 'center'}}>
                                         <p style={styles.codText}>Cash on Delivery: Inspect your pet's health upon arrival before paying the boutique partner.</p>
-                                        <button style={styles.finalBtn} onClick={handleFinalOrder} disabled={loading || isEditing}>Place COD Order</button>
+                                        <button style={styles.finalBtn} onClick={handleCODPayment} disabled={loading || isEditing}>
+                                            Place COD Order
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -450,17 +490,14 @@ const styles = {
     addrText: { fontSize: '0.95rem', color: '#636E72', margin: '3px 0' },
     addrPhone: { marginTop: '15px', fontWeight: '700', color: '#131921' },
 
-    // Payment Elements
-    payGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '25px' },
-    payCard: { textAlign: 'center', padding: '15px', borderRadius: '20px', cursor: 'pointer', backgroundColor: '#F9FAFB' },
-    payIcon: { fontSize: '1.5rem', display: 'block', marginBottom: '5px' },
-    payName: { fontWeight: '800', fontSize: '0.8rem' },
+    // ✨ Payment Grid specific to 2 options (ONLINE / COD)
+    payGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' },
+    payCard: { textAlign: 'center', padding: '20px', borderRadius: '20px', cursor: 'pointer', backgroundColor: '#F9FAFB', transition: 'all 0.2s ease' },
+    payIcon: { fontSize: '2rem', display: 'block', marginBottom: '10px' },
+    payName: { fontWeight: '800', fontSize: '0.9rem' },
+
     payDetails: { padding: '30px', borderRadius: '25px', border: '1.5px solid #EAEAEA', background: '#fff' },
-    primaryBtn: { width: '100%', padding: '20px', backgroundColor: '#FF9900', color: '#131921', border: 'none', borderRadius: '18px', fontWeight: '900', cursor: 'pointer', fontSize: '1rem' },
-    finalBtn: { width: '100%', padding: '18px', backgroundColor: '#131921', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '800', cursor: 'pointer' },
-    qrVault: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' },
-    timer: { background: '#131921', color: '#fff', padding: '5px 15px', borderRadius: '50px', fontSize: '0.8rem', fontWeight: '800' },
-    qrHint: { fontWeight: '700', fontSize: '0.95rem' },
+    finalBtn: { width: '100%', padding: '18px', backgroundColor: '#131921', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', transition: 'transform 0.1s' },
     codText: { color: '#636E72', fontWeight: '600', marginBottom: '20px', lineHeight: '1.5' },
 
     // Sidebar

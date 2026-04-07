@@ -117,7 +117,7 @@ const AddPet = () => {
 
         try {
             // ✨ FIXED: Added Auth Headers to the Fetch call
-            const res = await fetch(`http://${window.location.hostname}:8080/api/pets/saveBulk`, {
+            const res = await fetch(`http://${window.location.hostname}:8090/api/pets/saveBulk`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(finalBulkData)

@@ -36,7 +36,7 @@ const UserProfile = ({ user, setUser, cart }) => {
     const [initialAddressData, setInitialAddressData] = useState({});
     const addressFormRef = useRef(null);
 
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');

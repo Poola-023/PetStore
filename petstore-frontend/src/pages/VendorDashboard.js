@@ -12,7 +12,7 @@ const VendorDashboard = () => {
     const [dynamicSalesData, setDynamicSalesData] = useState([{ name: 'Loading', sales: 0 }]);
     const [dynamicPetData, setDynamicPetData] = useState([{ breed: 'Loading...', views: 1, inquiries: 1 }]);
 
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
 
     // ✨ HELPER: Get Security Headers
     const getAuthHeaders = () => {

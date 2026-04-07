@@ -17,7 +17,7 @@ const UserAddress = ({ user, setUser, cart }) => {
 
     const PAGE_SIZE = 5;
     const navigate = useNavigate();
-    const API = `http://${window.location.hostname}:8080/api/address`;
+    const API = `http://${window.location.hostname}:8090/api/address`;
 
     // ✨ HELPER: Get JWT Headers for Security
     const getAuthHeaders = () => {

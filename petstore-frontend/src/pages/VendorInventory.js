@@ -15,7 +15,7 @@ const VendorInventory = () => {
     const [isUpdating, setIsUpdating] = useState(false);
 
     const editFormRef = useRef(null);
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
 
     // ✨ SECURITY HELPER
     const getAuthHeaders = () => {

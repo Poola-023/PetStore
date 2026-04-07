@@ -40,7 +40,7 @@ const TrackOrder = ({ user, setUser, cart }) => {
                 // 2. ✨ FETCH PET IMAGE FROM PETS TABLE
                 // Using petId from the order to get the actual image blob
                 if (order.petId) {
-                    const petRes = await fetch(`http://${window.location.hostname}:8080/api/pets/${order.petId}`);
+                    const petRes = await fetch(`http://${window.location.hostname}:8090/api/pets/${order.petId}`);
                     if (petRes.ok) {
                         const petData = await petRes.json();
                         setPetDetails(petData);

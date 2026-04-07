@@ -6,7 +6,7 @@ const ReviewSection = ({ targetId, type = "PET" }) => { // type can be 'PET' or 
     const [rating, setRating] = useState(5);
 
     // Replace with your API endpoint
-    const API_BASE = `http://${window.location.hostname}:8080/api/reviews`;
+    const API_BASE = `http://${window.location.hostname}:8090/api/reviews`;
 
     useEffect(() => {
         // Fetch reviews

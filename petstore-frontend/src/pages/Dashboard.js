@@ -115,7 +115,7 @@ const ProductCarousel = ({ title, products, viewAllPath, navigate }) => {
 
 const Dashboard = ({ user, setUser, cart }) => {
     const navigate = useNavigate();
-    const API_BASE = `http://${window.location.hostname}:8080/api`;
+    const API_BASE = `http://${window.location.hostname}:8090/api`;
     const [dashboardData, setDashboardData] = useState({ justArrived: [], bestSelling: [], popular: [] });
     const [vendors, setVendors] = useState([]);
     const [promos, setPromos] = useState([]);

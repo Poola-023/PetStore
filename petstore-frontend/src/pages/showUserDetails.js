@@ -5,7 +5,7 @@ const ShowUserDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/users/all')
+    fetch('http://localhost:8090/api/users/all')
       .then((res) => res.json())
       .then((data) => {
         setUsers(data);

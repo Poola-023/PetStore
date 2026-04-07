@@ -34,7 +34,7 @@ const EditPet = () => {
         }
 
         try {
-            const res = await fetch(`http://localhost:8080/api/pets/update/${pet.id}`, {
+            const res = await fetch(`http://localhost:8090/api/pets/update/${pet.id}`, {
                 method: 'PUT',
                 // DO NOT set Content-Type header; browser does it for FormData
                 body: formData

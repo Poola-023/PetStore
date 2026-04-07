@@ -11,7 +11,7 @@ const Signup = ({ user, setUser, cart }) => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const API = `http://${window.location.hostname}:8080/api/users`;
+    const API = `http://${window.location.hostname}:8090/api/users`;
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -25,10 +25,14 @@ const Signup = ({ user, setUser, cart }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber: formData.phoneNumber, email: formData.email })
             });
+
             if (res.ok) {
                 setFormData(prev => ({ ...prev, otp: '' }));
                 setStep(2);
                 setMsg("Security PIN sent! Please check your email.");
+            } else if (res.status === 409) {
+                // ✨ FIX: Catch the 409 here if your backend checks duplicates early
+                setMsg("An account with this email or phone already exists. Please log in.");
             } else {
                 setMsg("Failed to send PIN. Please check your details.");
             }
@@ -40,26 +44,39 @@ const Signup = ({ user, setUser, cart }) => {
     };
 
     const handleVerifySignup = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const res = await fetch(`${API}/verify-signup`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            if (res.ok) {
-                setMsg("Membership approved! Redirecting...");
-                setTimeout(() => navigate('/login'), 2000);
-            } else {
-                setMsg("Invalid PIN. Please try again.");
+            e.preventDefault();
+            setLoading(true);
+            try {
+                const res = await fetch(`${API}/verify-signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                if (res.ok) {
+                    setMsg("✅ Membership approved! Redirecting to login...");
+
+                    // ✨ FIX: Shortened timeout and forced navigation
+                    setTimeout(() => {
+                        navigate('/login', { replace: true });
+
+                        // Bulletproof Fallback: If React Router fails, force the browser window to change
+                        if (window.location.pathname !== '/login') {
+                            window.location.href = '/login';
+                        }
+                    }, 800); // Only wait 0.8 seconds now
+
+                } else if (res.status === 409) {
+                    setMsg("Account already exists! Please log in.");
+                } else {
+                    setMsg("❌ Invalid PIN. Please try again.");
+                }
+            } catch (err) {
+                setMsg("Registration failed. Please check your connection.");
+            } finally {
+                setLoading(false);
             }
-        } catch (err) {
-            setMsg("Registration failed.");
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
 
     return (
         <div style={styles.page}>
@@ -100,7 +117,6 @@ const Signup = ({ user, setUser, cart }) => {
                                     <input name="email" type="email" placeholder="name@luxury.com" style={styles.input} value={formData.email} onChange={handleChange} required />
                                 </div>
 
-                                {/* ✨ NEW LOOK: REFINED GENDER & CALENDAR ROW ✨ */}
                                 <div style={styles.row}>
                                     <div style={styles.halfGroup}>
                                         <label style={styles.label}>Gender</label>
@@ -238,7 +254,6 @@ const styles = {
 
     row: { display: 'flex', gap: '15px', width: '100%' },
 
-    // ✨ CUSTOM SELECT STYLES
     selectWrapper: { position: 'relative' },
     select: {
         width: '100%',
@@ -252,7 +267,6 @@ const styles = {
         cursor: 'pointer'
     },
 
-    // ✨ CUSTOM CALENDAR/DATE STYLES
     dateInputWrapper: {
         position: 'relative',
         display: 'flex',

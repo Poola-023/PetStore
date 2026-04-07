@@ -37,7 +37,7 @@ const VendorProfile = () => {
                 }
 
                 // ✨ FIXED: Replaced hardcoded localhost and added Auth Headers
-                const pRes = await fetch(`http://${window.location.hostname}:8080/api/pets/vendor/${id}`, { headers });
+                const pRes = await fetch(`http://${window.location.hostname}:8090/api/pets/vendor/${id}`, { headers });
                 if (pRes.ok) {
                     const pData = await pRes.json();
                     setPets(pData);

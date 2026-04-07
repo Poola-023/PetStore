@@ -10,7 +10,7 @@ const VendorLogin = ({ user, setUser, cart }) => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const API = `http://${window.location.hostname}:8080/api/vendors`;
+    const API = `http://${window.location.hostname}:8090/api/vendors`;
 
     const handleSendOtp = async (e) => {
         e.preventDefault();

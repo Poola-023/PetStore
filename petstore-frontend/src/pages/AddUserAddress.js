@@ -30,7 +30,7 @@ const AddUserAddress = ({ user }) => {
         }
 
         try {
-            const res = await fetch(`http://${window.location.hostname}:8080/api/address/save/${user.userId}`, {
+            const res = await fetch(`http://${window.location.hostname}:8090/api/address/save/${user.userId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

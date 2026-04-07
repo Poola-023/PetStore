@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../config';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import SubFooter from './SubFooter';
@@ -76,7 +77,7 @@ const PetDetails = ({ user, setUser, addToCart, cart }) => {
         const fetchPetData = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`http://${window.location.hostname}:8080/api/pets/${id}`);
+                const res = await fetch(`http://${window.location.hostname}:8090/api/pets/${id}`);
                 if (res.ok) {
                     const data = await res.json();
                     setPet(data);
@@ -85,12 +86,12 @@ const PetDetails = ({ user, setUser, addToCart, cart }) => {
                     setIsAdded(alreadyInCart);
 
                     try {
-                        const relatedRes = await fetch(`http://${window.location.hostname}:8080/api/pets/${id}/related`);
+                        const relatedRes = await fetch(`http://${window.location.hostname}:8090/api/pets/${id}/related`);
                         if (relatedRes.ok) setRelatedPets(await relatedRes.json());
                     } catch (relatedErr) { console.error("Error fetching related pets"); }
 
                     try {
-                        const reviewRes = await fetch(`http://${window.location.hostname}:8080/api/reviews/pet/${id}`);
+                        const reviewRes = await fetch(`http://${window.location.hostname}:8090/api/reviews/pet/${id}`);
                         if (reviewRes.ok) setReviews(await reviewRes.json());
                     } catch (reviewErr) { console.error("Error fetching reviews"); }
                 }
@@ -134,7 +135,7 @@ const PetDetails = ({ user, setUser, addToCart, cart }) => {
             const token = localStorage.getItem('token'); // Get the secure token
 
             try {
-                const response = await fetch(`http://${window.location.hostname}:8080/api/cart/add`, {
+                const response = await fetch(`http://${window.location.hostname}:8090/api/cart/add`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -153,41 +154,25 @@ const PetDetails = ({ user, setUser, addToCart, cart }) => {
         };
 
     // ✨ NEW: Handle Review Submission
-    const handleReviewSubmit = async (e) => {
-        e.preventDefault();
-        if (!currentUserId) {
-            alert("Please log in to leave a review.");
-            navigate('/login');
-            return;
-        }
-        if (!reviewText.trim()) return;
-
-        setSubmittingReview(true);
-
-        const newReviewObj = {
-            id: Date.now(), // Temporary ID for optimistic UI
-            userName: user?.username || "Guardian",
-            rating: rating,
-            bio: reviewText,
-            reviewDate: new Date().toISOString()
-        };
-
-        // Note: Uncomment this to actually POST to your Spring Boot backend once the endpoint is ready
-        /*
+    // Inside your fetchPetData function in PetDetails.js
+    const handleReviewSubmit = async () => {
         try {
-            await fetch(`http://${window.location.hostname}:8080/api/reviews/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ petId: id, userId: currentUserId, rating, bio: reviewText })
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE}/reviews/pet/${id}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`, // ✨ This unlocks the 403!
+                    'Content-Type': 'application/json'
+                }
             });
-        } catch (err) { console.error("Failed to post review"); }
-        */
 
-        // Optimistic UI Update
-        setReviews([newReviewObj, ...reviews]);
-        setReviewText('');
-        setRating(5);
-        setSubmittingReview(false);
+            if (res.ok) {
+                const data = await res.json();
+                setReviews(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch reviews", err);
+        }
     };
 
     if (loading) return <div style={styles.loader}>Connecting to boutique...</div>;

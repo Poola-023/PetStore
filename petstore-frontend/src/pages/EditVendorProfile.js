@@ -34,7 +34,7 @@ const EditVendorProfile = () => {
             }
 
             try {
-                const res = await fetch(`http://${window.location.hostname}:8080/api/vendors/${id}`, {
+                const res = await fetch(`http://${window.location.hostname}:8090/api/vendors/${id}`, {
                     method: 'GET',
                     headers: getAuthHeaders()
                 });

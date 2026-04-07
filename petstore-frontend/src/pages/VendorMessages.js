@@ -12,7 +12,7 @@ const VendorMessages = () => {
 
     useEffect(() => {
         // ✨ Setup STOMP Client
-        const socket = new SockJS(`http://${window.location.hostname}:8080/ws-chat`);
+        const socket = new SockJS(`http://${window.location.hostname}:8090/ws-chat`);
         const client = new Client({
             webSocketFactory: () => socket,
             onConnect: () => {

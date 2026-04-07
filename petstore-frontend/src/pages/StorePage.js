@@ -15,7 +15,7 @@ const StorePage = () => {
         const fetchStorePets = async () => {
             try {
                 // REAL-TIME: Fetching pets for this specific vendor from your MySQL DB
-                const res = await fetch(`http://localhost:8080/api/pets/vendor/${vendorId}`);
+                const res = await fetch(`http://localhost:8090/api/pets/vendor/${vendorId}`);
                 if (res.ok) {
                     const data = await res.json();
                     setPets(data);

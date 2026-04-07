@@ -2,7 +2,8 @@ package com.example.petstore.Configuration;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys; // ✨ NEW IMPORT
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,16 +15,26 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets; // ✨ NEW IMPORT
-import java.security.Key; // ✨ NEW IMPORT
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Collections;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    // Inside your JwtAuthFilter.java
-// ✨ MAKE SURE THIS MATCHES THE KEY IN JwtUtils EXACTLY
+    // Your secure secret
     private final String jwtSecret = "BoutiquePetStoreSuperSecretKeyThatIsExceedinglyLongAndVerySecure2026!@#$";
+
+    // ✨ Store the key at the class level so it can be reused
+    private Key key;
+
+    // ✨ OPTIMIZATION: @PostConstruct runs exactly ONCE when the server starts.
+    @PostConstruct
+    public void init() {
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        System.out.println("✅ JWT Secure Key initialized successfully.");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -34,11 +45,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             try {
-                // ✨ FIXED: Convert the String secret into a proper Cryptographic Key
-                Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-
+                // ✨ Use the pre-calculated 'this.key' here! This is lightning fast now.
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(key) // ✨ Use the Key object here
+                        .setSigningKey(this.key)
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
@@ -59,6 +68,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
 
+        // Continues the chain for both authenticated and public (signup/login) requests
         filterChain.doFilter(request, response);
     }
 }
